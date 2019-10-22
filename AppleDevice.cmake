@@ -42,7 +42,7 @@
 # Updated by Alex Stewart (alexs.mac@gmail.com).
 # The following variables control the behaviour of this toolchain:
 #
-# CMAKE_PLATFORM: IOS, IOS-SIMULATOR, TVOS, TVOS-SIMULATOR, WATCHOS, WATCHOS-SIMULATOR
+# CMAKE_PLATFORM: IOS, IOS-SIMULATOR, TVOS, TVOS-SIMULATOR, WATCHOS, WATCHOS-SIMULATOR, MACCATALYST
 # CMAKE_OSX_SYSROOT: Path to the iOS SDK to use.  By default this is
 #    automatically determined from CMAKE_PLATFORM and xcodebuild, but
 #    can also be manually specified (although this should not be required).
@@ -89,7 +89,7 @@ if (CMAKE_PLATFORM STREQUAL "IOS")
   set(IOS_ARCH armv7 arm64)
 elseif (CMAKE_PLATFORM STREQUAL "IOS-SIMULATOR")
   set(XCODE_IOS_PLATFORM iphonesimulator)
-  set(IOS_ARCH i386)
+  set(IOS_ARCH i386 x86_64)
 elseif (CMAKE_PLATFORM STREQUAL "TVOS")
   set(XCODE_IOS_PLATFORM appletvos)
   set(IOS_ARCH arm64)
@@ -101,7 +101,11 @@ elseif (CMAKE_PLATFORM STREQUAL "WATCHOS")
   set(IOS_ARCH armv7k)
 elseif (CMAKE_PLATFORM STREQUAL "WATCHOS-SIMULATOR")
   set(XCODE_IOS_PLATFORM watchsimulator)
-  set(IOS_ARCH i386)
+  set(IOS_ARCH i386 x86_64)
+elseif (CMAKE_PLATFORM STREQUAL "MACCATALYST")
+  set(XCODE_IOS_PLATFORM macosx)
+  set(IOS_ARCH x86_64)
+  set(CATALYST_FLAGS "-target x86_64-apple-ios-macabi -miphoneos-version-min=13.0")
 else()
   message(FATAL_ERROR "Invalid CMAKE_PLATFORM: ${CMAKE_PLATFORM}")
 endif()
@@ -210,8 +214,10 @@ if (XCODE_VERSION VERSION_LESS 7.0)
   message(FATAL_ERROR "Xcode 6 and under is not supported")
 else()
   # Xcode 7.0+ uses flags we can build directly from XCODE_IOS_PLATFORM.
-  set(XCODE_IOS_PLATFORM_VERSION_FLAGS
-    "-m${XCODE_IOS_PLATFORM}-version-min=${IOS_DEPLOYMENT_TARGET}")
+  if(NOT(CMAKE_PLATFORM STREQUAL "MACCATALYST"))
+    set(XCODE_IOS_PLATFORM_VERSION_FLAGS
+      "-m${XCODE_IOS_PLATFORM}-version-min=${IOS_DEPLOYMENT_TARGET}")
+  endif()
 endif()
 if(CMAKE_ENABLE_BITCODE)
   set(BITCODE_FLAG "-fembed-bitcode")
@@ -219,10 +225,10 @@ elseif(NOT CMAKE_PLATFORM MATCHES ".*SIMULATOR")
   set(BITCODE_FLAG "-fembed-bitcode-marker")
 endif()
 set(CMAKE_C_FLAGS
-  "${XCODE_IOS_PLATFORM_VERSION_FLAGS} ${BITCODE_FLAG} -fobjc-abi-version=2 -fobjc-arc ${CMAKE_C_FLAGS}")
+  "${XCODE_IOS_PLATFORM_VERSION_FLAGS} ${BITCODE_FLAG} ${CATALYST_FLAGS} -fobjc-abi-version=2 -fobjc-arc ${CMAKE_C_FLAGS}")
 # Hidden visibilty is required for C++ on iOS.
 set(CMAKE_CXX_FLAGS
-  "${XCODE_IOS_PLATFORM_VERSION_FLAGS} ${BITCODE_FLAG} -fobjc-abi-version=2 -fobjc-arc ${CMAKE_CXX_FLAGS}")
+  "${XCODE_IOS_PLATFORM_VERSION_FLAGS} ${BITCODE_FLAG} ${CATALYST_FLAGS} -fobjc-abi-version=2 -fobjc-arc ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -fomit-frame-pointer -ffast-math ${CMAKE_CXX_FLAGS_RELEASE}")
 set(CMAKE_C_LINK_FLAGS "${XCODE_IOS_PLATFORM_VERSION_FLAGS} ${BITCODE_FLAG} -Wl,-search_paths_first ${CMAKE_C_LINK_FLAGS}")
 set(CMAKE_CXX_LINK_FLAGS "${XCODE_IOS_PLATFORM_VERSION_FLAGS} ${BITCODE_FLAG} -Wl,-search_paths_first ${CMAKE_CXX_LINK_FLAGS}")
